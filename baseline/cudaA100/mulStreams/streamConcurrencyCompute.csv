@@ -1,0 +1,8 @@
+Group,Experiment,Problem Space,*Ratio Mean,TP(s^-1) Mean,Ker(ms) Mean,Ker(ms) Min,Ker(ms) Max,
+launchKernel,MulStreams,1,1,1615.01,634.051,634.051,634.051,
+launchKernel,MulStreams,2,1.99306,3218.82,318.129,318.129,318.129,
+launchKernel,MulStreams,4,3.61709,5841.65,175.293,175.293,175.293,
+launchKernel,MulStreams,8,7.75634,12526.6,81.7461,81.7461,81.7461,
+launchKernel,MulStreams,16,8.75477,14139.1,72.4234,72.4234,72.4234,
+launchKernel,MulStreams,32,14.4028,23260.7,44.0227,44.0227,44.0227,
+launchKernel,MulStreams,64,39.9535,64525.4,15.8697,15.8697,15.8697,

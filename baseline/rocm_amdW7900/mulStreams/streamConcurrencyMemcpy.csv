@@ -1,0 +1,6 @@
+Group,Experiment,Problem Space,*Ratio Mean,Band Mean,Cpy(ms) Mean,
+Memcpy,MulStreams,1,1,643121,3.33437,
+Memcpy,MulStreams,2,1.09765,674207,3.03775,
+Memcpy,MulStreams,4,1.11116,682511,3.00081,
+Memcpy,MulStreams,8,1.10231,677049,3.02491,
+Memcpy,MulStreams,16,1.0896,669283,3.06019,

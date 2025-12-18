@@ -1,0 +1,8 @@
+Group,Experiment,Problem Space,Fd* Mean,Fc* Mean,Td(us) Mean,Tc(us) Mean,
+resouce,event,1,2.5786e+06,1.23945e+06,0.39273,0.84605,
+resouce,event,2,3.64012e+06,1.80332e+06,0.275258,0.555477,
+resouce,event,4,4.20145e+06,2.56982e+06,0.238199,0.389689,
+resouce,event,8,4.83992e+06,3.12496e+06,0.206723,0.320193,
+resouce,event,16,5.0949e+06,3.4372e+06,0.196331,0.300616,
+resouce,event,32,5.83869e+06,3.84545e+06,0.173668,0.260627,
+resouce,event,64,5.78495e+06,3.95569e+06,0.173087,0.253496,

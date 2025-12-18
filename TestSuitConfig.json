@@ -1,0 +1,125 @@
+{
+    "testSuitConfigs": [
+        {
+            "suitName": "graphAndSchedule",
+            "baseline": "cudaA100",
+            "baseScore": 1000,
+            "testCases": [
+                {
+                    "caseName": "kernelLaunchThroughputMode",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "kernelLaunchLatencyMode",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "moduleLoadAndGetFunction",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "efficiencyOfGraph",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "efficiencyOfSync",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "efficiencyOfGraphLaunch",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "graphLaunchThroughputMode",
+                    "scoreWeight": 1
+                }
+            ]
+        },
+        {
+            "suitName": "memoryOps",
+            "baseline": "cudaA100",
+            "baseScore": 1000,
+            "testCases": [
+                {
+                    "caseName": "GpuReadAndWriteRate",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "Copy1DAlignedRate",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "Copy1DUnAlignedRate",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "Copy2DRate",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "Copy3DArrayRate",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "Copy3DRate",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "CopyPinnedRate",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "CopyRegisteredRate",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "CpuReadAndWriteRate",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "HostRegisterAndUnRegister",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "MallocRateFrom1Bto4GB",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "SetRate",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "IpcOpenMemHandle",
+                    "scoreWeight": 1
+                }
+            ]
+        },
+        {
+            "suitName": "mulStreams",
+            "baseline": "cudaA100",
+            "baseScore": 1000,
+            "testCases": [
+                {
+                    "caseName": "kernelLaunchMulStreamTimerByEvent",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "kernelLaunchMulStreamTimerByCpu",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "parallelismOfDifferentCommands",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "streamConcurrencyCompute",
+                    "scoreWeight": 1
+                },
+                {
+                    "caseName": "streamConcurrencyMemcpy",
+                    "scoreWeight": 1
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,9 @@
+.vscode/*
+result
+build
+scripts/__pycache__
+*.out
+*.o
+*.svg
+score
+

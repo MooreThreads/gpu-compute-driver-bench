@@ -1,0 +1,17 @@
+gpu-compute-driver-bench
+Copyright 2025 Moore Threads Technology Co., Ltd.
+
+This product includes software developed by:
+- Moore Threads Technology Co., Ltd.
+
+This product also includes software developed by John Farrier (Celero project):
+- Portions of code in the common/ directory are based on the Celero project
+- Copyright 2015-2023 John Farrier
+- Licensed under the Apache License, Version 2.0
+- Source: https://github.com/DigitalInBlue/Celero
+
+The following third-party libraries are used in this project:
+- libcpuid: Copyright 2008-2013 Veselin Georgiev, licensed under BSD License (used as system library dependency)
+- Eigen: Copyright (C) 2008 Gael Guennebaud, licensed under MPL2 (used as header-only library dependency)
+- hwloc: Copyright 2006-2021 The University of Tennessee, licensed under BSD License (used as system library dependency)
+- OpenBLAS: Copyright 2015-2021 OpenBLAS project, licensed under BSD License (used as system library dependency)

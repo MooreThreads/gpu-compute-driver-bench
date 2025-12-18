@@ -1,0 +1,6 @@
+Group,Experiment,Problem Space,*TP(s^-1) Mean,twait-us Mean,t2str-us Mean,t1str-us Mean,
+efficiencyOfSync,syncByEvent,10000,490777,2.03758,59418.6,39044.8,
+efficiencyOfSync,syncByEvent,20000,390199,2.56279,99780.1,48526.8,
+efficiencyOfSync,syncByEvent,30000,372679,2.68327,150235,69739.2,
+efficiencyOfSync,syncByEvent,40000,368480,2.71385,201532,92980.1,
+efficiencyOfSync,syncByEvent,50000,374186,2.67247,249880,116259,
