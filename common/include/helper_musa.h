@@ -22,6 +22,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <musa.h>
+#include <musa_runtime.h>
+
 static const char* _musaGetErrorEnum(musaError_t error) {
     return musaGetErrorName(error);
 }

@@ -20,7 +20,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string>
-#include <Eigen/Dense>
 
 #include "Celero.h"
 #include "UserDefinedMeasurements.h"
