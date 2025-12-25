@@ -46,7 +46,6 @@ endif()
 
 if(ENABLE_NVCC)
     message("USE NVCC COMPILER")
-
     find_program(NVCC_EXECUTABLE nvcc)
 
     if(NVCC_EXECUTABLE)
@@ -83,6 +82,7 @@ set(MTGPU_ARCH_MAPPING
     "0300=mp_22"
     "0323=mp_22"
     "0327=mp_22"
+    "a101=mp_22"
     "0313=mp_22"
     "0400=mp_31"
     "0500=mp_32"
@@ -92,17 +92,29 @@ set(MTGPU_ARCH_MAPPING
 )
 
 execute_process(
-    COMMAND bash -c "lspci -n | grep 1ed5"
+    COMMAND bash -c "lspci -nn | grep -E '1ed5|0202'"
     OUTPUT_VARIABLE MTGPU_ARCH_RAW
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
+
+message("MTGPU_ARCH_RAW: ${MTGPU_ARCH_RAW}")
 
 set(START_INDEX 0)
 set(END_INDEX 0)
 
 while(END_INDEX GREATER -1)
-    math(EXPR START_INDEX "${END_INDEX} + 1")
-    string(FIND "${MTGPU_ARCH_RAW}" "1ed5:" START_INDEX)
+    string(SUBSTRING "${MTGPU_ARCH_RAW}" ${END_INDEX} -1 MTGPU_ARCH_RAW)
+    string(FIND "${MTGPU_ARCH_RAW}" "1ed5:" INDEX_1ED5)
+    string(FIND "${MTGPU_ARCH_RAW}" "0202:" INDEX_0202)
+
+    if(INDEX_1ED5 GREATER -1)
+        set(START_INDEX ${INDEX_1ED5})
+    elseif(INDEX_0202 GREATER -1)
+    	set(START_INDEX ${INDEX_0202})
+    else()
+        message(WARNING "Neither 1ed5 nor 0202 found in PCI ID list.")
+        set(START_INDEX -1)
+    endif()
 
     if(START_INDEX EQUAL -1)
         break()
@@ -115,16 +127,17 @@ while(END_INDEX GREATER -1)
     # 检查 SUBSTRING_RESULT 是否在 MTGPU_ARCH_MAPPING 中
     set(MTGPU_PCI_FOUND FALSE)
     foreach(mapping ${MTGPU_ARCH_MAPPING})
-        string(REPLACE "=" ";" item ${mapping})
-        list(GET item 0 arch)
-        list(GET item 1 mp)
-        if("${arch}" STREQUAL "${SUBSTRING_RESULT}")
+   	string(REPLACE "=" ";" item ${mapping})
+       	list(GET item 0 arch)
+       	list(GET item 1 mp)
+      	if("${arch}" STREQUAL "${SUBSTRING_RESULT}")
             set(MTGPU_PCI_FOUND TRUE)
-            set(ENV{MTGPU_ARCH} ${mp})
-            message("MTGPU_ARCH set to ${mp}")
+	    set(ENV{MTGPU_ARCH} ${mp})
+            message("MTGPU_ARCH auto detected: ${mp}")
             break()
         endif()
     endforeach()
+
     # 如果找到则跳出循环
     if(MTGPU_PCI_FOUND)
         break()
@@ -134,7 +147,7 @@ while(END_INDEX GREATER -1)
 
 endwhile()
 endif()
-# 如果没有找到匹配的mp_xx值，则打印警告消息
+
 if (ENABLE_MCC)
     if (DEFINED ENV{MTGPU_ARCH} )
         set(COMPILE_ARCH $ENV{MTGPU_ARCH})

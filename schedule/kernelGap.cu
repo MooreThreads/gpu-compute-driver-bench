@@ -20,7 +20,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string>
-#include <Eigen/Dense>
 
 #include "Celero.h"
 #include "UserDefinedMeasurements.h"
@@ -42,9 +41,6 @@ __global__ void delay(volatile int* flag, unsigned long long timeout_clocks = 10
     }
 }
 
-std::vector<double> xin;
-std::vector<double> yout;
-
 int main(int argc, char** argv) {
     int deviceCount;
     checkMusaErrors(musaGetDeviceCount(&deviceCount));
@@ -54,20 +50,6 @@ int main(int argc, char** argv) {
     std::cout << "## " << argv[0] << " on:" << prop.name << std::endl;
     Printer::get().TableSetPbName("lanchTimes:N");
     Run(argc, argv);
-    Eigen::VectorXd x(xin.size());
-    Eigen::VectorXd y(yout.size());
-    for (int i = 0; i < xin.size(); ++i) {
-        x(i) = xin[i];
-        y(i) = yout[i];
-    }
-
-    Eigen::MatrixXd A(x.size(), 2);
-    A.col(0)                     = x;
-    A.col(1)                     = Eigen::VectorXd::Ones(x.size());
-    Eigen::VectorXd coefficients = A.householderQr().solve(y);
-    console::SetConsoleColor(console::ConsoleColor::Red);
-    std::cout << "fit curve:t = " << coefficients(0) << "n + " << coefficients(1) << std::endl;
-    printf("that means the gap between two kernels is %f us\n", coefficients(0));
     return 0;
 }
 
@@ -128,8 +110,6 @@ BASELINE_F(launchKernel, delayKernel, LanchFixture, 1, 1) {
     checkMusaErrors(musaEventSynchronize(stop));
     checkMusaErrors(musaEventElapsedTime(&t, start, stop));
 
-    xin.push_back(static_cast<double>(launchTimes));
-    yout.push_back(1000 * t);
 
     utime->addValue(1000 * t);
 }
