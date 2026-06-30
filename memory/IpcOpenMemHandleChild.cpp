@@ -17,8 +17,33 @@
 #include "ShareMemroyDefine.h"
 #include "helper_musa.h"
 
+#include <chrono>
 #include <iostream>
 #include <sys/shm.h>
+
+static float elapsedMilliseconds(std::chrono::steady_clock::time_point start,
+                                 std::chrono::steady_clock::time_point stop) {
+    // Keep the historical CSV unit: bandwidth calculation expects milliseconds.
+    return std::chrono::duration<float, std::milli>(stop - start).count();
+}
+
+static void warmUpAllVisibleDevices() {
+    int deviceCount = 0;
+    checkMusaErrors(musaGetDeviceCount(&deviceCount));
+
+    int originalDevice = 0;
+    checkMusaErrors(musaGetDevice(&originalDevice));
+
+    for (int device = 0; device < deviceCount; ++device) {
+        void* warmupMemory = nullptr;
+        checkMusaErrors(musaSetDevice(device));
+        checkMusaErrors(musaMalloc(&warmupMemory, 1));
+        checkMusaErrors(musaFree(warmupMemory));
+        checkMusaErrors(musaDeviceSynchronize());
+    }
+
+    checkMusaErrors(musaSetDevice(originalDevice));
+}
 
 int main() {
     key_t key;
@@ -42,17 +67,12 @@ int main() {
     ShareMemHandleInfo* shareMem = static_cast<ShareMemHandleInfo*>(sm);
     while (!shareMem->child_wake.load(std::memory_order_seq_cst)) {}
     void* slavePtr = nullptr;
-    musaEvent_t start;
-    musaEvent_t stop;
-    checkMusaErrors(musaEventCreate(&start));
 
-    checkMusaErrors(musaEventCreate(&stop));
-
-    checkMusaErrors(musaEventRecord(start, 0));
-
+    warmUpAllVisibleDevices();
+    auto openStart = std::chrono::steady_clock::now();
     checkMusaErrors(musaIpcOpenMemHandle(&slavePtr, shareMem->handler, musaIpcMemLazyEnablePeerAccess));
-    checkMusaErrors(musaEventRecord(stop, 0));
-    checkMusaErrors(musaEventSynchronize(stop));
+    auto openStop      = std::chrono::steady_clock::now();
+    shareMem->openTime = elapsedMilliseconds(openStart, openStop);
 
     auto mallocSize = shareMem->mallocSize;
     char* slaveData = reinterpret_cast<char*>(malloc(mallocSize));
@@ -65,7 +85,6 @@ int main() {
         }
     }
     free(slaveData);
-    checkMusaErrors(musaEventElapsedTime(&(shareMem->openTime), start, stop));
     checkMusaErrors(musaIpcCloseMemHandle(slavePtr));
     // sem_post(sem_ob2);
     shareMem->parent_wake.store(true, std::memory_order_seq_cst);

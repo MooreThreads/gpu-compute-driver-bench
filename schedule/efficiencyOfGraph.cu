@@ -666,8 +666,8 @@ musaError_t GraphFixture::complexGraphWithGraph(
     free(res);
     free(ppd);
     // 05. Step5. Clean the memory and resources
-    //  checkMusaErrors(musaEventDestroy(beginEvent));
-    //  checkMusaErrors(musaEventDestroy(endEvent));
+    checkMusaErrors(musaEventDestroy(beginEvent));
+    checkMusaErrors(musaEventDestroy(endEvent));
     checkMusaErrors(musaGraphExecDestroy(graphExec));
     checkMusaErrors(musaGraphDestroy(graph));
     checkMusaErrors(musaStreamDestroy(streamForGraph));
@@ -896,12 +896,15 @@ musaError_t GraphFixture::pureDeviceGraphWithGraph(
         }
     }
 
-    free(host_a);
-    free(host_b);
-    free(host_c);
+    checkMusaErrors(musaGraphExecDestroy(graphExec));
+    checkMusaErrors(musaGraphDestroy(graph));
+    checkMusaErrors(musaStreamDestroy(streamForGraph));
     checkMusaErrors(musaFree(dev_a));
     checkMusaErrors(musaFree(dev_b));
     checkMusaErrors(musaFree(dev_c));
+    free(host_a);
+    free(host_b);
+    free(host_c);
     return musaSuccess;
 }
 

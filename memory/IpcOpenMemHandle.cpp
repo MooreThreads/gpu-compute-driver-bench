@@ -81,11 +81,11 @@ public:
 
     std::shared_ptr<UDMBandWidth> getBand{new UDMBandWidth("*B(Get)")};
 
-    std::shared_ptr<UDMGPUTime> getTime{new UDMGPUTime("t(Get)")};
+    std::shared_ptr<UDMCPUTime> getTime{new UDMCPUTime("t(Get)")};
 
     std::shared_ptr<UDMBandWidth> openBand{new UDMBandWidth("*B(Open)")};
 
-    std::shared_ptr<UDMGPUTime> openTime{new UDMGPUTime("t(Open)")};
+    std::shared_ptr<UDMCPUTime> openTime{new UDMCPUTime("t(Open)")};
 };
 
 std::string getCurrentExecutorDir() {
@@ -99,6 +99,20 @@ std::string getCurrentExecutorDir() {
     std::string fullPath(buf);
     auto lastSlash = fullPath.find_last_of('/');
     return fullPath.substr(0, lastSlash);
+}
+
+static float elapsedMilliseconds(std::chrono::steady_clock::time_point start,
+                                 std::chrono::steady_clock::time_point stop) {
+    // Keep the historical CSV unit: bandwidth calculation expects milliseconds.
+    return std::chrono::duration<float, std::milli>(stop - start).count();
+}
+
+static void warmUpMusaRuntime() {
+    void* warmupMemory = nullptr;
+    checkMusaErrors(musaSetDevice(0));
+    checkMusaErrors(musaMalloc(&warmupMemory, 1));
+    checkMusaErrors(musaFree(warmupMemory));
+    checkMusaErrors(musaDeviceSynchronize());
 }
 
 int IpcMemoryFixture::testGetAndImportedMemory(float* getTime, float* openTime) {
@@ -143,18 +157,15 @@ int IpcMemoryFixture::testGetAndImportedMemory(float* getTime, float* openTime) 
         exit(0);
     } else {
         // get handler process
-        musaEvent_t start;
-        musaEvent_t stop;
-        checkMusaErrors(musaEventCreate(&start));
-        checkMusaErrors(musaEventCreate(&stop));
+        warmUpMusaRuntime();
         checkMusaErrors(musaMalloc(&deviceMemory, mallocSize));
         checkMusaErrors(musaMemset(deviceMemory, 11, mallocSize));
-        musaIpcMemHandle_t ipcHandle;
-        checkMusaErrors(musaEventRecord(start, 0));
+        checkMusaErrors(musaDeviceSynchronize());
+
+        auto getStart = std::chrono::steady_clock::now();
         checkMusaErrors(musaIpcGetMemHandle(&(shareMem->handler), deviceMemory));
-        checkMusaErrors(musaEventRecord(stop, 0));
-        checkMusaErrors(musaEventSynchronize(stop));
-        checkMusaErrors(musaEventElapsedTime(getTime, start, stop));
+        auto getStop = std::chrono::steady_clock::now();
+        *getTime     = elapsedMilliseconds(getStart, getStop);
 
         shareMem->child_wake.store(true, std::memory_order_seq_cst);
         while (!shareMem->parent_wake.load(std::memory_order_seq_cst)) {}

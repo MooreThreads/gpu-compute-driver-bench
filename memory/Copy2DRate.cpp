@@ -27,6 +27,29 @@
 #include "helper_musa.h"
 #include "helper_musa_drvapi.h"
 
+static void copy2DAsyncTiledAndSync(const MUSA_MEMCPY2D& copy2D, MUstream stream) {
+    // MACA not support big size copy yet.
+    static const size_t kMaxTileWidthInBytes = 128ULL * 1024ULL * 1024ULL;
+
+    if (copy2D.WidthInBytes <= kMaxTileWidthInBytes) {
+        checkMuErrors(muMemcpy2DAsync(&copy2D, stream));
+        checkMusaErrors(musaDeviceSynchronize());
+        return;
+    }
+
+    size_t copiedBytes = 0;
+    while (copiedBytes < copy2D.WidthInBytes) {
+        MUSA_MEMCPY2D tile = copy2D;
+        const size_t remainingBytes = copy2D.WidthInBytes - copiedBytes;
+        tile.WidthInBytes = remainingBytes < kMaxTileWidthInBytes ? remainingBytes : kMaxTileWidthInBytes;
+        tile.srcXInBytes = copy2D.srcXInBytes + copiedBytes;
+        tile.dstXInBytes = copy2D.dstXInBytes + copiedBytes;
+        checkMuErrors(muMemcpy2DAsync(&tile, stream));
+        checkMusaErrors(musaDeviceSynchronize());
+        copiedBytes += tile.WidthInBytes;
+    }
+}
+
 int main(int argc, char** argv) {
     int deviceCount;
     checkMusaErrors(musaGetDeviceCount(&deviceCount));
@@ -143,8 +166,7 @@ BASELINE_F(musaCopy, copyRate2D, CopyFixture, SamplesCount, IterationsCount) {
     copy2D.Height       = height;
 
     timer.Restart();
-    checkMuErrors(muMemcpy2DAsync(&copy2D, nullptr));
-    checkMusaErrors(musaDeviceSynchronize());
+    copy2DAsyncTiledAndSync(copy2D, nullptr);
     timer.Stop();
     milliseconds = timer.GetElapsedSeconds() * 1000.f;
     this->uband_h2d->addValue(static_cast<double>(bytes) / (milliseconds * 1000));
@@ -158,7 +180,7 @@ BASELINE_F(musaCopy, copyRate2D, CopyFixture, SamplesCount, IterationsCount) {
     copy2D.dstPitch      = width * sizeof(int);
     copy2D.dstHost       = hB;
     copy2D.dstDevice     = 0;
-    checkMuErrors(muMemcpy2D(&copy2D));
+    copy2DAsyncTiledAndSync(copy2D, nullptr);
     copy2D.srcMemoryType = MU_MEMORYTYPE_DEVICE;
     copy2D.srcPitch      = pitch;
     copy2D.srcHost       = nullptr;
@@ -169,8 +191,7 @@ BASELINE_F(musaCopy, copyRate2D, CopyFixture, SamplesCount, IterationsCount) {
     copy2D.dstDevice     = d_C;
 
     timer.Restart();
-    checkMuErrors(muMemcpy2DAsync(&copy2D, nullptr));
-    checkMusaErrors(musaDeviceSynchronize());
+    copy2DAsyncTiledAndSync(copy2D, nullptr);
     timer.Stop();
     milliseconds = timer.GetElapsedSeconds() * 1000.f;
     this->uband_d2d->addValue(2 * static_cast<double>(bytes) / (milliseconds * 1000));
@@ -186,8 +207,7 @@ BASELINE_F(musaCopy, copyRate2D, CopyFixture, SamplesCount, IterationsCount) {
     copy2D.dstDevice     = 0;
 
     timer.Restart();
-    checkMuErrors(muMemcpy2DAsync(&copy2D, nullptr));
-    checkMusaErrors(musaDeviceSynchronize());
+    copy2DAsyncTiledAndSync(copy2D, nullptr);
     timer.Stop();
     milliseconds = timer.GetElapsedSeconds() * 1000.f;
     this->uband_d2h->addValue(static_cast<double>(bytes) / (milliseconds * 1000));
