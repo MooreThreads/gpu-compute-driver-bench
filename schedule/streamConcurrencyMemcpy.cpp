@@ -113,6 +113,9 @@ float LanchFixture::memcpyByStreams() {
         ha[i] = i;
     }
     checkMuErrors(muMemcpyHtoD(da, ha, elementBytes));
+    // warm up D2D copy engine
+    checkMuErrors(muMemcpyDtoDAsync(db, da, elementBytes / streamNum, nullptr));
+    checkMuErrors(muCtxSynchronize());
     MUevent startEvent, stopEvent;
     checkMuErrors(muEventCreate(&startEvent, 0));
     checkMuErrors(muEventCreate(&stopEvent, 0));

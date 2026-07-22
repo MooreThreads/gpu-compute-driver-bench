@@ -26,7 +26,6 @@
 #include "UserDefinedMeasurements.h"
 #include "musa.h"
 #include "musa_runtime.h"
-#include "timer_his.h"
 #include "helper_musa.h"
 #include "helper_musa_drvapi.h"
 
@@ -92,6 +91,12 @@ public:
     std::shared_ptr<UDMGPUTime> utime1{new UDMGPUTime("t1str-us")};
     std::shared_ptr<UDMGPUTime> utime2{new UDMGPUTime("t2str-us")};
     std::shared_ptr<UDMGPUTime> utime3{new UDMGPUTime("twait-us")};
+    // TP (throughput) is derived from the aggregate synchronization overhead:
+    //   totalTime = sum(result2 - result1)
+    //   totalCnt  = sum(synchronizedConut - 1)
+    //   utp = totalCnt * 1e6 / totalTime  (events per second)
+    // This measures the rate at which event-serialized operations are processed.
+    // TODO: report single-stream and dual-stream throughput as separate metrics.
     std::shared_ptr<UDMThroughPut> utp{new UDMThroughPut("*TP(s^-1)")};
 };
 
@@ -99,7 +104,6 @@ float SyncFixture::totalTime   = 0.f;
 uint32_t SyncFixture::totalCnt = 0;
 
 int SyncFixture::testNCommands(int n, float* t1, float* t2) {
-    CPerfCounter timer;
     musaStream_t streams[2];
     checkMusaErrors(musaStreamCreate(&streams[0]));
     checkMusaErrors(musaStreamCreate(&streams[1]));
@@ -107,13 +111,23 @@ int SyncFixture::testNCommands(int n, float* t1, float* t2) {
     musaEvent_t events[2];
     checkMusaErrors(musaEventCreate(&events[0]));
     checkMusaErrors(musaEventCreate(&events[1]));
+    musaEvent_t baselineStart;
+    musaEvent_t baselineStop;
+    musaEvent_t eventStart;
+    musaEvent_t eventStop;
+    checkMusaErrors(musaEventCreate(&baselineStart));
+    checkMusaErrors(musaEventCreate(&baselineStop));
+    checkMusaErrors(musaEventCreate(&eventStart));
+    checkMusaErrors(musaEventCreate(&eventStop));
 
     // warm up
     int* flag;
     checkMusaErrors(musaMalloc(&flag, 4 * n));
     checkMusaErrors(musaMemset((void*)flag, 1, 4 * n));
-    const int tickNum = 1750;
-    // delay<<<1,1>>>(flag, tickNum);
+    // tickNum is sensitive: each kernel spins for tickNum clock64() cycles.
+    // tickNum=1750  -> per-kernel ~2.9us @600MHz, command dispatch overhead (~1-3us/kernel)
+    // tickNum=17500 -> per-kernel ~29us @600MHz, command overhead <5% of kernel time
+    const int tickNum = 17500;
     for (int i = 0; i < 100; ++i) {
         delay<<<1, 1, 0, streams[0]>>>(flag + i, tickNum);
         delay<<<1, 1, 0, streams[1]>>>(flag + i, tickNum);
@@ -121,49 +135,62 @@ int SyncFixture::testNCommands(int n, float* t1, float* t2) {
     checkMusaErrors(musaDeviceSynchronize());
 
     // test if we submit all commands to the same stream
-    timer.Start();
+    checkMusaErrors(musaEventRecord(baselineStart, streams[0]));
     for (uint64_t i = 0; i < n; ++i) {
         delay<<<1, 1, 0, streams[0]>>>(flag + i, tickNum);
-        // emptyKernel<<<1, 1>>>();
-        // emptyKernel<<<1, 1, 0, streams[0]>>>();
     }
-    checkMusaErrors(musaStreamSynchronize(nullptr));
-    timer.Stop();
-    float result1 = timer.GetElapsedSeconds() * 1000.f * 1000.f;
+    checkMusaErrors(musaEventRecord(baselineStop, streams[0]));
+    checkMusaErrors(musaEventSynchronize(baselineStop));
+    float elapsedMilliseconds = 0.0f;
+    checkMusaErrors(musaEventElapsedTime(&elapsedMilliseconds, baselineStart, baselineStop));
+    *t1 = elapsedMilliseconds * 1000.f;
 
+    // warm up
     for (int i = 0; i < 100; ++i) {
         delay<<<1, 1, 0, streams[0]>>>(flag + i, tickNum);
         delay<<<1, 1, 0, streams[1]>>>(flag + i, tickNum);
     }
+    checkMusaErrors(musaDeviceSynchronize());
+
     // test if we submit all commands to different streams
-    timer.Reset();
-    timer.Start();
+    checkMusaErrors(musaEventRecord(eventStart, streams[0]));
     for (uint64_t i = 0; i < n; ++i) {
         if (i != 0) {
             checkMusaErrors(musaStreamWaitEvent(streams[i % 2], events[(i + 1) % 2], 0));
         }
         delay<<<1, 1, 0, streams[i % 2]>>>(flag + i, tickNum);
-        // emptyKernel<<<1, 1, 0, streams[i % 2]>>>();
         checkMusaErrors(musaEventRecord(events[i % 2], streams[i % 2]));
     }
-    checkMusaErrors(musaStreamSynchronize(streams[(n - 1) % 2]));
-    timer.Stop();
-    float result2 = timer.GetElapsedSeconds() * 1000.f * 1000.f;
+    checkMusaErrors(musaEventRecord(eventStop, streams[(n - 1) % 2]));
+    checkMusaErrors(musaEventSynchronize(eventStop));
+    checkMusaErrors(musaEventElapsedTime(&elapsedMilliseconds, eventStart, eventStop));
+    *t2 = elapsedMilliseconds * 1000.f;
 
-    *t1 = result1;
-    *t2 = result2;
+    checkMusaErrors(musaEventDestroy(events[0]));
+    checkMusaErrors(musaEventDestroy(events[1]));
+    checkMusaErrors(musaEventDestroy(baselineStart));
+    checkMusaErrors(musaEventDestroy(baselineStop));
+    checkMusaErrors(musaEventDestroy(eventStart));
+    checkMusaErrors(musaEventDestroy(eventStop));
+    checkMusaErrors(musaStreamDestroy(streams[0]));
+    checkMusaErrors(musaStreamDestroy(streams[1]));
+    checkMusaErrors(musaFree(flag));
+
     return 0;
 }
 
 BASELINE_F(efficiencyOfSync, syncByEvent, SyncFixture, SamplesCount, IterationsCount) {
     float result1, result2;
     int ans = testNCommands(synchronizedConut, &result1, &result2);
-    // sometimes, result2 < result1)(have no idea) ignore these cases
-    if (result2 - result1) {
-        this->utime1->addValue(result1);                                            // us
-        this->utime2->addValue(result2);                                            // us
+    this->utime1->addValue(result1);                                            // us
+    this->utime2->addValue(result2);                                            // us
+    if (result2 > result1) {
         this->utime3->addValue((result2 - result1) / float(synchronizedConut - 1)); // us
         totalTime += (result2 - result1);
         totalCnt += (synchronizedConut - 1);
+    } else {
+        std::cerr << "efficiencyOfSync warning, result2: " << result2
+                  << " is not bigger than result1: " << result1
+                  << ", skip derived synchronization overhead" << std::endl;
     }
 }
