@@ -29,19 +29,23 @@
 #include "musa_runtime.h"
 #include "timer_his.h"
 
+constexpr int kLaunchKernelCount = 1024;
+
 __global__ void emptyKernel() {
 }
 
 __global__ void copyKernel(int* b, const int* a, int n) {
     int gtid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (gtid < n)
+    if (gtid < n) {
         b[gtid] = a[gtid];
+    }
 }
 
 __global__ void addOneKernel(int* a, int n) {
     int gtid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (gtid < n)
+    if (gtid < n) {
         a[gtid] = a[gtid] + 1;
+    }
 }
 
 #define BLOCK_SIZE 256
@@ -80,13 +84,13 @@ public:
         return {this->kernelCount, this->exeTime, this->exeBand};
     }
 
-    musaError_t graphLaunch(unsigned int size, int kernelCount, long long* tElapsedTime);
-    musaError_t kernelLaunch(unsigned int size, int kernelCount, long long* tElapsedTime);
-    musaError_t graphApiLaunch(unsigned int size, int kernelCount, long long* tElapsedTime);
-    musaError_t emptyKernelGraphLaunch(unsigned int size, int kernelCount, long long* tElapsedTime);
-    musaError_t graphAndKernel(unsigned int size, int kernelCount, long long* tElapsedTime);
-    musaError_t graphAfterKernel(unsigned int size, int kernelCount, long long* tElapsedTime);
-    musaError_t graphBeforeKernel(unsigned int size, int kernelCount, long long* tElapsedTime);
+    musaError_t graphLaunch(unsigned int size, int kernelCount, double* tElapsedTime);
+    musaError_t kernelLaunch(unsigned int size, int kernelCount, double* tElapsedTime);
+    musaError_t graphApiLaunch(unsigned int size, int kernelCount, double* tElapsedTime);
+    musaError_t emptyKernelGraphLaunch(unsigned int size, int kernelCount, double* tElapsedTime);
+    musaError_t graphAndKernel(unsigned int size, int kernelCount, double* tElapsedTime);
+    musaError_t graphAfterKernel(unsigned int size, int kernelCount, double* tElapsedTime);
+    musaError_t graphBeforeKernel(unsigned int size, int kernelCount, double* tElapsedTime);
 
     int getErrorSize(const int* const c, const int* const a, const int* const b, unsigned int size) {
         int errorSize = 0;
@@ -104,7 +108,7 @@ public:
     std::shared_ptr<UDMBandWidth> exeBand{new UDMBandWidth("*gr(MB/s)")};
 };
 
-musaError_t GraphLaunchFixture::graphLaunch(unsigned int size, int kernelCount, long long* tElapsedTime) {
+musaError_t GraphLaunchFixture::graphLaunch(unsigned int size, int kernelCount, double* tElapsedTime) {
     int* host_a = (int*)malloc(size * sizeof(int));
     int* host_b = (int*)malloc(size * sizeof(int));
     for (int i = 0; i < size; ++i) {
@@ -174,7 +178,7 @@ musaError_t GraphLaunchFixture::graphLaunch(unsigned int size, int kernelCount, 
     return musaSuccess;
 }
 
-musaError_t GraphLaunchFixture::kernelLaunch(unsigned int size, int kernelCount, long long* tElapsedTime) {
+musaError_t GraphLaunchFixture::kernelLaunch(unsigned int size, int kernelCount, double* tElapsedTime) {
     int* host_a = (int*)malloc(size * sizeof(int));
     int* host_b = (int*)malloc(size * sizeof(int));
     for (int i = 0; i < size; ++i) {
@@ -229,7 +233,7 @@ musaError_t GraphLaunchFixture::kernelLaunch(unsigned int size, int kernelCount,
     return musaSuccess;
 }
 
-musaError_t GraphLaunchFixture::graphApiLaunch(unsigned int size, int kernelCount, long long* tElapsedTime) {
+musaError_t GraphLaunchFixture::graphApiLaunch(unsigned int size, int kernelCount, double* tElapsedTime) {
     int* host_a = (int*)malloc(size * sizeof(int));
     int* host_b = (int*)malloc(size * sizeof(int));
     for (int i = 0; i < size; ++i) {
@@ -298,7 +302,7 @@ musaError_t GraphLaunchFixture::graphApiLaunch(unsigned int size, int kernelCoun
     return musaSuccess;
 }
 
-musaError_t GraphLaunchFixture::emptyKernelGraphLaunch(unsigned int size, int kernelCount, long long* tElapsedTime) {
+musaError_t GraphLaunchFixture::emptyKernelGraphLaunch(unsigned int size, int kernelCount, double* tElapsedTime) {
     musaStream_t captureStream, runStream;
     checkMusaErrors(musaStreamCreate(&captureStream));
     checkMusaErrors(musaStreamCreate(&runStream));
@@ -336,7 +340,7 @@ musaError_t GraphLaunchFixture::emptyKernelGraphLaunch(unsigned int size, int ke
     return musaSuccess;
 }
 
-musaError_t GraphLaunchFixture::graphAndKernel(unsigned int size, int kernelCount, long long* tElapsedTime) {
+musaError_t GraphLaunchFixture::graphAndKernel(unsigned int size, int kernelCount, double* tElapsedTime) {
     int* host_a = (int*)malloc(size * sizeof(int));
     int* host_b = (int*)malloc(size * sizeof(int));
     int* host_c = (int*)malloc(size * sizeof(int));
@@ -394,8 +398,8 @@ musaError_t GraphLaunchFixture::graphAndKernel(unsigned int size, int kernelCoun
         }
     }
     checkMusaErrors(musaStreamSynchronize(runStream1));
-    timer.Stop();
     checkMusaErrors(musaStreamSynchronize(runStream2));
+    timer.Stop();
 
     *tElapsedTime = timer.GetElapsedSeconds() * 1000 / loopCount;
 
@@ -435,7 +439,7 @@ musaError_t GraphLaunchFixture::graphAndKernel(unsigned int size, int kernelCoun
     return musaSuccess;
 }
 
-musaError_t GraphLaunchFixture::graphAfterKernel(unsigned int size, int kernelCount, long long* tElapsedTime) {
+musaError_t GraphLaunchFixture::graphAfterKernel(unsigned int size, int kernelCount, double* tElapsedTime) {
     int* host_a = (int*)malloc(size * sizeof(int));
     int* host_b = (int*)malloc(size * sizeof(int));
     for (int i = 0; i < size; ++i) {
@@ -508,7 +512,7 @@ musaError_t GraphLaunchFixture::graphAfterKernel(unsigned int size, int kernelCo
     return musaSuccess;
 }
 
-musaError_t GraphLaunchFixture::graphBeforeKernel(unsigned int size, int kernelCount, long long* tElapsedTime) {
+musaError_t GraphLaunchFixture::graphBeforeKernel(unsigned int size, int kernelCount, double* tElapsedTime) {
     int* host_a = (int*)malloc(size * sizeof(int));
     int* host_b = (int*)malloc(size * sizeof(int));
     for (int i = 0; i < size; ++i) {
@@ -582,8 +586,8 @@ musaError_t GraphLaunchFixture::graphBeforeKernel(unsigned int size, int kernelC
 }
 
 BASELINE_F(kernelLaunch, kernelLaunch, GraphLaunchFixture, 5, 1) {
-    long long tElapsedTime = 0;
-    int count              = 1024;
+    double tElapsedTime = 0.0;
+    int count = kLaunchKernelCount;
     kernelLaunch(m_Size, count, &tElapsedTime);
 
     kernelCount->addValue(count);
@@ -592,8 +596,8 @@ BASELINE_F(kernelLaunch, kernelLaunch, GraphLaunchFixture, 5, 1) {
 }
 
 BASELINE_F(graphLaunch, graphLaunch, GraphLaunchFixture, 5, 1) {
-    long long tElapsedTime = 0;
-    int count              = 1024;
+    double tElapsedTime = 0.0;
+    int count = kLaunchKernelCount;
     graphLaunch(m_Size, count, &tElapsedTime);
 
     kernelCount->addValue(count);
@@ -602,8 +606,8 @@ BASELINE_F(graphLaunch, graphLaunch, GraphLaunchFixture, 5, 1) {
 }
 
 BENCHMARK_F(graphLaunch, graphApiLaunch, GraphLaunchFixture, 5, 1) {
-    long long tElapsedTime = 0;
-    int count              = 1024;
+    double tElapsedTime = 0.0;
+    int count = kLaunchKernelCount;
     graphApiLaunch(m_Size, count, &tElapsedTime);
 
     kernelCount->addValue(count);
@@ -612,8 +616,8 @@ BENCHMARK_F(graphLaunch, graphApiLaunch, GraphLaunchFixture, 5, 1) {
 }
 
 BENCHMARK_F(graphLaunch, emptyKernelGraphLaunch, GraphLaunchFixture, 5, 1) {
-    long long tElapsedTime = 0;
-    int count              = 1024;
+    double tElapsedTime = 0.0;
+    int count = kLaunchKernelCount;
     emptyKernelGraphLaunch(m_Size, count, &tElapsedTime);
 
     kernelCount->addValue(count);
@@ -622,8 +626,8 @@ BENCHMARK_F(graphLaunch, emptyKernelGraphLaunch, GraphLaunchFixture, 5, 1) {
 }
 
 BENCHMARK_F(graphLaunch, graphAndKernel, GraphLaunchFixture, 5, 1) {
-    long long tElapsedTime = 0;
-    int count              = 1024;
+    double tElapsedTime = 0.0;
+    int count = kLaunchKernelCount;
     graphAndKernel(m_Size, count, &tElapsedTime);
 
     kernelCount->addValue(count);
@@ -632,8 +636,8 @@ BENCHMARK_F(graphLaunch, graphAndKernel, GraphLaunchFixture, 5, 1) {
 }
 
 BENCHMARK_F(graphLaunch, graphAfterKernel, GraphLaunchFixture, 5, 1) {
-    long long tElapsedTime = 0;
-    int count              = 1024;
+    double tElapsedTime = 0.0;
+    int count = kLaunchKernelCount;
     graphAfterKernel(m_Size, count, &tElapsedTime);
 
     kernelCount->addValue(count);
@@ -642,8 +646,8 @@ BENCHMARK_F(graphLaunch, graphAfterKernel, GraphLaunchFixture, 5, 1) {
 }
 
 BENCHMARK_F(graphLaunch, graphBeforeKernel, GraphLaunchFixture, 5, 1) {
-    long long tElapsedTime = 0;
-    int count              = 1024;
+    double tElapsedTime = 0.0;
+    int count = kLaunchKernelCount;
     graphBeforeKernel(m_Size, count, &tElapsedTime);
 
     kernelCount->addValue(count);
