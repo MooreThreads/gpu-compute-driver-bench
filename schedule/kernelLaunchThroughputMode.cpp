@@ -115,6 +115,7 @@ BASELINE_F(launchKernel, nullkernel, LanchFixture, SamplesCount, IterationsCount
             ));
     }
     checkMusaErrors(musaDeviceSynchronize());
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
     float milliseconds       = 0.f;
     float total_milliseconds = 0.f;
     for (size_t i = 0; i < 1; ++i) {
